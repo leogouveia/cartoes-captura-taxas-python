@@ -11,9 +11,9 @@ def convertJson(dados):
   try:
     return json.loads(dados)
   except Exception as ex:
-    # template = "An exception of type {0} occurred. Arguments:\n{1!r}"
-    # message = template.format(type(ex).__name__, ex.args)
-    # print(message)
+    template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+    message = template.format(type(ex).__name__, ex.args)
+    print(message)
     return False
 
 def getCatalogoRecursos():
@@ -27,19 +27,26 @@ def getCatalogoRecursos():
       return False
     data = webUrl.read()
     return json.loads(data)
-  except:
+  except Exception as ex:
+    template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+    message = template.format(type(ex).__name__, ex.args)
+    print(message)
     return False
 
 def getTaxasBanco(banco):
   urlDados = banco["URLDados"]
+  nome = banco["NomeInstituicao"]
+  print(". capturando " + nome)
   try:
     webUrl = urllib.request.urlopen(urlDados, context=ssl._create_unverified_context())
     if webUrl.getcode() != 200:
       print("Received error, cannot parse results")
       return False
     dados = webUrl.read()
+    print(".. capturado com sucesso!")
     return convertJson(dados)
-  except:
+  except Exception as ex:
+    print(ex)
     return False
 
 def preparaDadosTaxasBanco(dados):
@@ -72,31 +79,35 @@ def getTaxasBancos(catalogo):
         taxas.append(dadosBanco)
     return taxas
 
-def createFileName(dir = "./files/"):
+def createFileName(base_name = "taxas_cartoes", dir_name = "./files/"):
   now = datetime.now()
   nowFormated = now.strftime("%Y%m%d%H%M%S%f")
-  return dir + "taxas_cartoes_" + nowFormated + ".csv"
+  return dir_name + base_name + "_" + nowFormated + ".csv"
 
-def saveCsvFile(taxas):
-  if len(taxas) <= 0: return False
-  with open(createFileName(), 'w+') as f:
+def saveCsvFile(dados, base_name = "taxas_cartoes", dir_name = "./files/"):
+  if len(dados) <= 0: return False
+  with open(createFileName(base_name, dir_name), 'w+', newline='') as f:
     csv.register_dialect('customDialect', quoting=csv.QUOTE_NONNUMERIC, delimiter=";")
-    csvWriter = csv.DictWriter(f, fieldnames=taxas[0].keys(), dialect='customDialect')
+    csvWriter = csv.DictWriter(f, fieldnames=dados[0].keys(), dialect='customDialect')
     csvWriter.writeheader()
-    for taxa in taxas:
-      csvWriter.writerow(taxa)
+    for linha in dados:
+      csvWriter.writerow(linha)
 
 def main():
   taxaBancos = []
   catalogo = getCatalogoRecursos()
+  saveCsvFile(catalogo["value"], base_name="catalogo_taxas")
   if catalogo == False:
-    print("Houve um problema ao capturar catalogo dos bancos.")
+    print(".! Houve um problema ao capturar catalogo dos bancos.")
     return
+  print(". catalogo de bancos capturado com sucesso.")
   taxas = getTaxasBancos(catalogo)
+  print(".. taxas capturadas")
   for taxa in taxas:
     taxaBancos = taxaBancos + preparaDadosTaxasBanco(taxa)
   # jsonTaxas = json.dumps(taxaBancos)
   saveCsvFile(taxaBancos)
+  print(". captura concluida")
   
 if __name__ == "__main__":
   main()
